@@ -275,10 +275,10 @@ final class ONFT_Telegram {
 				$src = $file . '.' . $i;
 				$dst = $file . '.' . ( $i + 1 );
 				if ( file_exists( $src ) ) {
-					@rename( $src, $dst );
+					$this->fs_move( $src, $dst );
 				}
 			}
-			@rename( $file, $file . '.1' );
+			$this->fs_move( $file, $file . '.1' );
 		}
 	}
  
@@ -300,5 +300,33 @@ final class ONFT_Telegram {
 		}
 		$opt['analytics'] = $analytics;
 		update_option( 'onft_settings', $opt, false );
+	}
+ 
+	private function fs_move( string $src, string $dst ): bool {
+		if ( ! file_exists( $src ) ) {
+			return false;
+		}
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		global $wp_filesystem;
+		if ( ! $wp_filesystem ) {
+			WP_Filesystem();
+		}
+		if ( $wp_filesystem && is_object( $wp_filesystem ) ) {
+			return (bool) $wp_filesystem->move( $src, $dst, true );
+		}
+		if ( @copy( $src, $dst ) ) {
+			if ( ! function_exists( 'wp_delete_file' ) ) {
+				require_once ABSPATH . 'wp-admin/includes/file.php';
+			}
+			if ( function_exists( 'wp_delete_file' ) ) {
+				@wp_delete_file( $src );
+			} elseif ( $wp_filesystem && is_object( $wp_filesystem ) ) {
+				@$wp_filesystem->delete( $src, true );
+			}
+			return true;
+		}
+		return false;
 	}
 }
