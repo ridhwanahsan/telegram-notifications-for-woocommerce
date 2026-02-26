@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Order Notifications for WooCommerce Telegram
  * Description: Send Telegram notifications automatically when a WooCommerce order is created or its status changes.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Order Notifications for WooCommerce Telegram

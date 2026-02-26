@@ -28,6 +28,7 @@ final class ONFT_Main {
  
 		add_action( 'woocommerce_new_order', array( $this, 'handle_new_order' ), 10, 1 );
 		add_action( 'woocommerce_order_status_changed', array( $this, 'handle_status_change' ), 10, 4 );
+		add_action( 'onft_send_delayed_order_message', array( $this, 'send_order_now' ), 10, 1 );
 	}
  
 	public function is_woocommerce_active(): bool {
@@ -66,8 +67,20 @@ final class ONFT_Main {
 			return;
 		}
  
-		$message = $this->settings->render_message_template( $order );
-		$this->telegram->send_order_message( $message, $order_id );
+		if ( ! $this->passes_filters( $order ) ) {
+			return;
+		}
+ 
+		$settings = $this->settings->get_settings();
+		$delay    = isset( $settings['delay_minutes'] ) ? (int) $settings['delay_minutes'] : 0;
+		if ( $delay > 0 ) {
+			if ( ! wp_next_scheduled( 'onft_send_delayed_order_message', array( $order_id ) ) ) {
+				wp_schedule_single_event( time() + ( $delay * 60 ), 'onft_send_delayed_order_message', array( $order_id ) );
+			}
+			return;
+		}
+ 
+		$this->send_order_now( $order_id );
 	}
  
 	public function handle_status_change( $order_id, $old_status, $new_status, $order ): void {
@@ -89,7 +102,51 @@ final class ONFT_Main {
 			return;
 		}
  
+		if ( ! $this->passes_filters( $order ) ) {
+			return;
+		}
+ 
+		$settings = $this->settings->get_settings();
+		$delay    = isset( $settings['delay_minutes'] ) ? (int) $settings['delay_minutes'] : 0;
+		if ( $delay > 0 ) {
+			if ( ! wp_next_scheduled( 'onft_send_delayed_order_message', array( $order_id ) ) ) {
+				wp_schedule_single_event( time() + ( $delay * 60 ), 'onft_send_delayed_order_message', array( $order_id ) );
+			}
+			return;
+		}
+ 
+		$this->send_order_now( $order_id );
+	}
+ 
+	public function send_order_now( int $order_id ): void {
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			return;
+		}
 		$message = $this->settings->render_message_template( $order );
 		$this->telegram->send_order_message( $message, $order_id );
+	}
+ 
+	private function passes_filters( WC_Order $order ): bool {
+		$s = $this->settings->get_settings();
+		$min = isset( $s['min_order_amount'] ) ? (float) $s['min_order_amount'] : 0.0;
+		if ( $min > 0 && (float) $order->get_total() < $min ) {
+			return false;
+		}
+		$countries = array_filter( array_map( 'trim', explode( ',', (string) ( $s['allow_countries'] ?? '' ) ) ) );
+		if ( ! empty( $countries ) ) {
+			$country = (string) $order->get_billing_country();
+			if ( $country && ! in_array( strtoupper( $country ), array_map( 'strtoupper', $countries ), true ) ) {
+				return false;
+			}
+		}
+		$methods = array_filter( array_map( 'trim', explode( ',', (string) ( $s['payment_methods'] ?? '' ) ) ) );
+		if ( ! empty( $methods ) ) {
+			$m = (string) $order->get_payment_method();
+			if ( $m && ! in_array( $m, $methods, true ) ) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

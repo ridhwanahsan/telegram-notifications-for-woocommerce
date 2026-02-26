@@ -11,6 +11,8 @@ Send Telegram notifications automatically when a WooCommerce order is created or
 - Custom message template with placeholders.
 - Test notification button from the settings screen.
 - Logs Telegram responses/errors to a file in uploads.
+- Top‑level admin menu “Telegram Notify” with General and Pro/Future pages.
+- Pro/Future options: rich messages (Markdown/HTML), multiple bots, filters, delay, per‑status templates, AI test.
 
 ## Requirements
 
@@ -21,7 +23,7 @@ Send Telegram notifications automatically when a WooCommerce order is created or
 ## Setup
 
 1. Install and activate the plugin.
-2. Go to **WooCommerce → Telegram Notifications**.
+2. Go to **Dashboard → Telegram Notify → General Settings**.
 3. Enable notifications.
 4. Add your Telegram Bot Token.
 5. Add one or more Chat IDs (comma separated).
@@ -69,7 +71,22 @@ Enter multiple Chat IDs separated by commas, for example:
 {order_status}
 {order_date}
 {order_link}
+{products_list}
+{quantity}
+{shipping_method}
+{billing_address}
+{coupon_used}
+{order_notes}
 ```
+ 
+## Pro / Future
+ 
+- Advanced Notifications: per‑status templates, admin vs customer toggles, delay (0–5 mins)
+- Filters & Conditions: min total, country, payment method, product/category specific
+- Rich Message / Buttons: parse mode, inline buttons, optional ordered products list
+- Team / Multi‑Bot: multiple bot entries and role/team scaffolding
+- Logs & Analytics: rotation controls, basic counters
+- AI Message Generator: placeholder feature with test button
 
 ## Logs
 
