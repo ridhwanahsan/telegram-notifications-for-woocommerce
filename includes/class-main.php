@@ -29,6 +29,7 @@ final class ONFT_Main {
 		add_action( 'woocommerce_new_order', array( $this, 'handle_new_order' ), 10, 1 );
 		add_action( 'woocommerce_order_status_changed', array( $this, 'handle_status_change' ), 10, 4 );
 		add_action( 'onft_send_delayed_order_message', array( $this, 'send_order_now' ), 10, 1 );
+		add_action( 'onft_retry_send', array( $this->telegram, 'handle_retry' ), 10, 5 );
 	}
  
 	public function is_woocommerce_active(): bool {
@@ -144,6 +145,41 @@ final class ONFT_Main {
 		if ( ! empty( $methods ) ) {
 			$m = (string) $order->get_payment_method();
 			if ( $m && ! in_array( $m, $methods, true ) ) {
+				return false;
+			}
+		}
+		$product_filter = array_filter( array_map( 'absint', array_map( 'trim', explode( ',', (string) ( $s['product_ids'] ?? '' ) ) ) ) );
+		if ( ! empty( $product_filter ) ) {
+			$match = false;
+			foreach ( $order->get_items() as $item ) {
+				$pid = $item->get_variation_id() ?: $item->get_product_id();
+				if ( in_array( (int) $pid, $product_filter, true ) ) {
+					$match = true;
+					break;
+				}
+			}
+			if ( ! $match ) {
+				return false;
+			}
+		}
+		$category_filter = array_filter( array_map( 'sanitize_title', array_map( 'trim', explode( ',', (string) ( $s['category_slugs'] ?? '' ) ) ) ) );
+		if ( ! empty( $category_filter ) ) {
+			$match = false;
+			foreach ( $order->get_items() as $item ) {
+				$pid  = $item->get_variation_id() ?: $item->get_product_id();
+				$term_slugs = array();
+				$terms = get_the_terms( $pid, 'product_cat' );
+				if ( is_array( $terms ) ) {
+					foreach ( $terms as $t ) {
+						$term_slugs[] = (string) $t->slug;
+					}
+				}
+				if ( array_intersect( $category_filter, $term_slugs ) ) {
+					$match = true;
+					break;
+				}
+			}
+			if ( ! $match ) {
 				return false;
 			}
 		}

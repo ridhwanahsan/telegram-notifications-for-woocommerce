@@ -134,6 +134,25 @@ final class ONFT_Settings {
 		return $out;
 	}
  
+	public function get_role_mapping_chat_ids(): array {
+		$settings = $this->get_settings();
+		$value    = isset( $settings['role_mappings'] ) ? (string) $settings['role_mappings'] : '';
+		$lines    = array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', $value ) ) );
+		$chat_ids = array();
+		foreach ( $lines as $line ) {
+			$parts = array_map( 'trim', explode( '|', $line ) );
+			if ( count( $parts ) >= 2 ) {
+				$ids = array_map( 'trim', explode( ',', $parts[1] ) );
+				foreach ( $ids as $id ) {
+					if ( $id !== '' ) {
+						$chat_ids[] = $id;
+					}
+				}
+			}
+		}
+		return array_values( array_unique( $chat_ids ) );
+	}
+ 
 	public function should_notify_status( string $status ): bool {
 		if ( ! $this->is_enabled() ) {
 			return false;
@@ -470,6 +489,20 @@ final class ONFT_Settings {
 			'onft_enable_analytics',
 			__( 'Enable basic analytics', 'telegram-notifications-for-woocommerce' ),
 			array( $this, 'field_enable_analytics' ),
+			'onft_pro_settings_page',
+			'onft_pro_logs'
+		);
+		add_settings_field(
+			'onft_analytics_summary',
+			__( 'Analytics summary', 'telegram-notifications-for-woocommerce' ),
+			array( $this, 'field_analytics_summary' ),
+			'onft_pro_settings_page',
+			'onft_pro_logs'
+		);
+		add_settings_field(
+			'onft_log_viewer',
+			__( 'Log viewer (last 100 lines)', 'telegram-notifications-for-woocommerce' ),
+			array( $this, 'field_log_viewer' ),
 			'onft_pro_settings_page',
 			'onft_pro_logs'
 		);
@@ -1016,6 +1049,44 @@ final class ONFT_Settings {
 			<input type="checkbox" name="<?php echo esc_attr( self::OPTION_NAME ); ?>[enable_analytics]" value="1" <?php checked( $enabled ); ?> />
 			<?php esc_html_e( 'Enable basic analytics (counts only)', 'telegram-notifications-for-woocommerce' ); ?>
 		</label>
+		<?php
+	}
+ 
+	public function field_analytics_summary(): void {
+		$opt       = get_option( self::OPTION_NAME, array() );
+		$analytics = isset( $opt['analytics'] ) && is_array( $opt['analytics'] ) ? $opt['analytics'] : array();
+		$total_sent   = isset( $analytics['total_sent'] ) ? (int) $analytics['total_sent'] : 0;
+		$total_failed = isset( $analytics['total_failed'] ) ? (int) $analytics['total_failed'] : 0;
+		$last_sent    = isset( $analytics['last_sent'] ) ? (string) $analytics['last_sent'] : '';
+		?>
+		<p>
+			<strong><?php esc_html_e( 'Total sent:', 'telegram-notifications-for-woocommerce' ); ?></strong>
+			<?php echo esc_html( (string) $total_sent ); ?><br/>
+			<strong><?php esc_html_e( 'Total failed:', 'telegram-notifications-for-woocommerce' ); ?></strong>
+			<?php echo esc_html( (string) $total_failed ); ?><br/>
+			<strong><?php esc_html_e( 'Last sent at:', 'telegram-notifications-for-woocommerce' ); ?></strong>
+			<?php echo esc_html( $last_sent ); ?>
+		</p>
+		<?php
+	}
+ 
+	public function field_log_viewer(): void {
+		$upload_dir = wp_upload_dir();
+		$file = '';
+		if ( ! empty( $upload_dir['basedir'] ) ) {
+			$file = trailingslashit( trailingslashit( $upload_dir['basedir'] ) . 'woo-telegram-notify' ) . 'logs.txt';
+		}
+		$content = '';
+		if ( $file && file_exists( $file ) && is_readable( $file ) ) {
+			$lines = @file( $file, FILE_IGNORE_NEW_LINES );
+			if ( is_array( $lines ) ) {
+				$tail = array_slice( $lines, -100 );
+				$content = implode( "\n", $tail );
+			}
+		}
+		?>
+		<p class="description"><?php esc_html_e( 'Showing last 100 lines from the log (if available).', 'telegram-notifications-for-woocommerce' ); ?></p>
+		<textarea class="large-text code" rows="10" readonly><?php echo esc_textarea( $content ); ?></textarea>
 		<?php
 	}
  

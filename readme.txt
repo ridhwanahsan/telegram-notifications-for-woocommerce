@@ -9,7 +9,7 @@ Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Send Telegram notifications automatically when a WooCommerce order is created or its status changes. Includes a top-level “Telegram Notify” menu and Pro/Future options like rich messages, multiple bots, filters, and delay.
+Send Telegram order notifications with templates and tests. Top-level “Telegram Notify” menu and Pro options.
 
 == Description ==
 

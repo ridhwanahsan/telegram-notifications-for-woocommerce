@@ -4,8 +4,12 @@ defined( 'ABSPATH' ) || exit;
 <div class="wrap">
 	<h1><?php esc_html_e( 'Telegram Notifications — Pro / Future Features', 'telegram-notifications-for-woocommerce' ); ?></h1>
 	<?php
-		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( (string) $_GET['tab'] ) ) : 'advanced';
-		$tabs = array(
+		$onft_nonce = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['_wpnonce'] ) ) : '';
+		$onft_tab   = 'advanced';
+		if ( '' !== $onft_nonce && wp_verify_nonce( $onft_nonce, 'onft_pro_tabs' ) ) {
+			$onft_tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( (string) $_GET['tab'] ) ) : 'advanced';
+		}
+		$onft_tabs = array(
 			'advanced' => __( 'Advanced Notifications', 'telegram-notifications-for-woocommerce' ),
 			'filters'  => __( 'Filters & Conditions', 'telegram-notifications-for-woocommerce' ),
 			'rich'     => __( 'Rich Message / Buttons', 'telegram-notifications-for-woocommerce' ),
@@ -13,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 			'logs'     => __( 'Logs & Analytics', 'telegram-notifications-for-woocommerce' ),
 			'ai'       => __( 'AI Message Generator', 'telegram-notifications-for-woocommerce' ),
 		);
-		$sections_for_tab = array(
+		$onft_sections_for_tab = array(
 			'advanced' => array( 'onft_pro_advanced' ),
 			'filters'  => array( 'onft_pro_filters' ),
 			'rich'     => array( 'onft_pro_rich' ),
@@ -21,15 +25,15 @@ defined( 'ABSPATH' ) || exit;
 			'logs'     => array( 'onft_pro_logs' ),
 			'ai'       => array( 'onft_pro_ai' ),
 		);
-		if ( ! isset( $tabs[ $tab ] ) ) {
-			$tab = 'advanced';
+		if ( ! isset( $onft_tabs[ $onft_tab ] ) ) {
+			$onft_tab = 'advanced';
 		}
 	?>
 
 	<h2 class="nav-tab-wrapper" style="margin-bottom: 12px;">
 		<a href="<?php echo esc_url( admin_url( 'admin.php?page=onft-telegram-notifications' ) ); ?>" class="nav-tab"><?php esc_html_e( 'General Settings', 'telegram-notifications-for-woocommerce' ); ?></a>
-		<?php foreach ( $tabs as $key => $label ) : ?>
-			<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'onft-telegram-pro', 'tab' => $key ), admin_url( 'admin.php' ) ) ); ?>" class="nav-tab <?php echo $tab === $key ? 'nav-tab-active' : ''; ?>"><?php echo esc_html( $label ); ?></a>
+		<?php foreach ( $onft_tabs as $onft_key => $onft_label ) : ?>
+			<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'onft-telegram-pro', 'tab' => $onft_key, '_wpnonce' => wp_create_nonce( 'onft_pro_tabs' ) ), admin_url( 'admin.php' ) ) ); ?>" class="nav-tab <?php echo $onft_tab === $onft_key ? 'nav-tab-active' : ''; ?>"><?php echo esc_html( $onft_label ); ?></a>
 		<?php endforeach; ?>
 	</h2>
 
@@ -38,20 +42,20 @@ defined( 'ABSPATH' ) || exit;
 		settings_fields( 'onft_pro_settings_group' );
 
 		global $wp_settings_sections, $wp_settings_fields;
-		$page = 'onft_pro_settings_page';
-		if ( isset( $wp_settings_sections[ $page ] ) ) {
-			foreach ( (array) $wp_settings_sections[ $page ] as $section_id => $section ) {
-				if ( ! in_array( $section_id, (array) $sections_for_tab[ $tab ], true ) ) {
+		$onft_page = 'onft_pro_settings_page';
+		if ( isset( $wp_settings_sections[ $onft_page ] ) ) {
+			foreach ( (array) $wp_settings_sections[ $onft_page ] as $onft_section_id => $onft_section ) {
+				if ( ! in_array( $onft_section_id, (array) $onft_sections_for_tab[ $onft_tab ], true ) ) {
 					continue;
 				}
-				if ( $section['title'] ) {
-					echo '<h2>' . esc_html( $section['title'] ) . '</h2>';
+				if ( $onft_section['title'] ) {
+					echo '<h2>' . esc_html( $onft_section['title'] ) . '</h2>';
 				}
-				if ( $section['callback'] ) {
-					call_user_func( $section['callback'], $section );
+				if ( $onft_section['callback'] ) {
+					call_user_func( $onft_section['callback'], $onft_section );
 				}
 				echo '<table class="form-table" role="presentation"><tbody>';
-				do_settings_fields( $page, $section_id );
+				do_settings_fields( $onft_page, $onft_section_id );
 				echo '</tbody></table>';
 			}
 		}

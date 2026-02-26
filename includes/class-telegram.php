@@ -16,6 +16,10 @@ final class ONFT_Telegram {
  
 		$token    = $this->settings->get_bot_token();
 		$chat_ids = $this->settings->get_chat_ids();
+		$role_ids = $this->settings->get_role_mapping_chat_ids();
+		if ( ! empty( $role_ids ) ) {
+			$chat_ids = array_values( array_unique( array_merge( $chat_ids, $role_ids ) ) );
+		}
  
 		if ( '' === $token || empty( $chat_ids ) ) {
 			return;
@@ -141,7 +145,7 @@ final class ONFT_Telegram {
 		return array( 'ok' => true, 'message' => __( 'Multi-bot test sent.', 'telegram-notifications-for-woocommerce' ) );
 	}
  
-	private function send_message_to_chat( string $token, string $chat_id, string $message, int $order_id, array $args = array() ): array {
+	private function send_message_to_chat( string $token, string $chat_id, string $message, int $order_id, array $args = array(), int $attempts_left = 2 ): array {
 		$url  = 'https://api.telegram.org/bot' . rawurlencode( $token ) . '/sendMessage';
 		$body = array(
 			'chat_id' => $chat_id,
@@ -180,6 +184,10 @@ final class ONFT_Telegram {
 					)
 				)
 			);
+			$this->bump_analytics( false );
+			if ( $attempts_left > 0 ) {
+				wp_schedule_single_event( time() + 60, 'onft_retry_send', array( $chat_id, $message, $order_id, $attempts_left - 1, $args ) );
+			}
 			return $result;
 		}
  
@@ -210,16 +218,36 @@ final class ONFT_Telegram {
 		if ( $code < 200 || $code >= 300 ) {
 			$result['ok']      = false;
 			$result['message'] = __( 'Telegram request failed.', 'telegram-notifications-for-woocommerce' );
+			$this->bump_analytics( false );
+			if ( $attempts_left > 0 ) {
+				wp_schedule_single_event( time() + 60, 'onft_retry_send', array( $chat_id, $message, $order_id, $attempts_left - 1, $args ) );
+			}
 			return $result;
 		}
  
 		if ( isset( $decoded['ok'] ) && false === $decoded['ok'] ) {
 			$result['ok']      = false;
 			$result['message'] = isset( $decoded['description'] ) ? (string) $decoded['description'] : __( 'Telegram request failed.', 'telegram-notifications-for-woocommerce' );
+			$this->bump_analytics( false );
+			if ( $attempts_left > 0 ) {
+				wp_schedule_single_event( time() + 60, 'onft_retry_send', array( $chat_id, $message, $order_id, $attempts_left - 1, $args ) );
+			}
 			return $result;
 		}
  
+		$this->bump_analytics( true );
 		return $result;
+	}
+ 
+	public function handle_retry( string $chat_id, string $message, int $order_id, int $attempts_left, array $args = array() ): void {
+		if ( ! $this->settings->is_enabled() ) {
+			return;
+		}
+		$token = $this->settings->get_bot_token();
+		if ( '' === $token ) {
+			return;
+		}
+		$this->send_message_to_chat( $token, $chat_id, $message, $order_id, $args, $attempts_left );
 	}
  
 	private function log_line( string $line ): void {
@@ -252,5 +280,25 @@ final class ONFT_Telegram {
 			}
 			@rename( $file, $file . '.1' );
 		}
+	}
+ 
+	private function bump_analytics( bool $ok ): void {
+		$opt = get_option( 'onft_settings', array() );
+		if ( ! is_array( $opt ) ) {
+			$opt = array();
+		}
+		$analytics = isset( $opt['analytics'] ) && is_array( $opt['analytics'] ) ? $opt['analytics'] : array(
+			'total_sent'   => 0,
+			'total_failed' => 0,
+			'last_sent'    => '',
+		);
+		if ( $ok ) {
+			$analytics['total_sent']   = (int) $analytics['total_sent'] + 1;
+			$analytics['last_sent']    = wp_date( 'Y-m-d H:i:s' );
+		} else {
+			$analytics['total_failed'] = (int) $analytics['total_failed'] + 1;
+		}
+		$opt['analytics'] = $analytics;
+		update_option( 'onft_settings', $opt, false );
 	}
 }
